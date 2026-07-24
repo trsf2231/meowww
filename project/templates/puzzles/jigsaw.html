@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <style>
+        body {
+            background: #fc3a84;
+            color: white;
+            text-align: center;
+            font-family: sans-serif;
+            padding-top: 40px;
+            margin: 0;
+        }
+
+        h2 {
+            font-size: 1.8rem;
+            margin-bottom: 10px;
+        }
+
+        p.sub {
+            opacity: 0.9;
+            margin-bottom: 20px;
+        }
+
+        .wrap {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            flex-wrap: wrap;
+        }
+
+        .board {
+            width: 240px;
+            height: 240px;
+            display: grid;
+            grid-template-columns: repeat(3, 80px);
+            grid-template-rows: repeat(3, 80px);
+            gap: 2px;
+            background: #8e2140;
+            border: 3px solid #8e2140;
+        }
+
+        .slot {
+            width: 80px;
+            height: 80px;
+            background: #fdd6df22;
+        }
+
+        .slot.filled {
+            background: none;
+        }
+
+        .tray {
+            width: 260px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            justify-content: center;
+            align-content: flex-start;
+        }
+
+        .piece {
+            width: 78px;
+            height: 78px;
+            background-image: url("/static/img/puzzle_jigsaw.jpg");
+            background-size: 240px 240px;
+            cursor: grab;
+            border: 2px solid #8e2140;
+            box-sizing: border-box;
+            touch-action: none;
+        }
+
+        .piece.dragging {
+            position: fixed;
+            z-index: 1000;
+            cursor: grabbing;
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.45);
+            pointer-events: none;
+        }
+
+        .slot.wrong {
+            animation: shake 0.3s;
+        }
+
+        @keyframes shake {
+            25% {
+                transform: translateX(-6px);
+            }
+
+            75% {
+                transform: translateX(6px);
+            }
+        }
+
+        a.back {
+            display: inline-block;
+            margin-top: 30px;
+            color: white;
+            text-decoration: underline;
+            font-size: 1.1rem;
+        }
+
+        .overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(142, 33, 64, 0.95);
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .overlay.show {
+            display: flex;
+        }
+
+        .overlay p {
+            font-size: 1.5rem;
+            max-width: 600px;
+        }
+
+        .overlay h1 {
+            font-size: 3rem;
+        }
+
+        .label {
+            font-size: 0.9rem;
+            opacity: 0.85;
+            margin-bottom: 8px;
+        }
+    </style>
+</head>
+
+<body>
+    <h2>Drag the pieces into place</h2>
+    <p class="sub">Drag each piece from the tray onto its matching slot.</p>
+    <div class="wrap">
+        <div>
+            <div class="label">Board</div>
+            <div class="board" id="board"></div>
+        </div>
+        <div>
+            <div class="label">Pieces</div>
+            <div class="tray" id="tray"></div>
+        </div>
+    </div>
+    <a class="back" href="/">Back Home</a>
+
+    <div class="overlay" id="overlay">
+        <h1>💌</h1>
+        <p>{{ text }}</p>
+        <a class="back" href="/" style="margin-top:10px;">Back Home</a>
+    </div>
+
+    <script>
+        const SIZE = 3;
+        const total = SIZE * SIZE;
+        const board = document.getElementById('board');
+        const tray = document.getElementById('tray');
+        let placedCount = 0;
+        let dragEl = null;
+        let originParent = null;
+        let offsetX = 0, offsetY = 0;
+
+        // Build board slots
+        for (let i = 0; i < total; i++) {
+            const slot = document.createElement('div');
+            slot.className = 'slot';
+            slot.dataset.index = i;
+            board.appendChild(slot);
+        }
+
+        // Build shuffled pieces in tray
+        const order = [...Array(total).keys()];
+        for (let i = order.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [order[i], order[j]] = [order[j], order[i]];
+        }
+
+        order.forEach(pieceIndex => {
+            const piece = document.createElement('div');
+            piece.className = 'piece';
+            piece.dataset.piece = pieceIndex;
+            const row = Math.floor(pieceIndex / SIZE);
+            const col = pieceIndex % SIZE;
+            piece.style.backgroundPosition = `-${col * 80}px -${row * 80}px`;
+            piece.addEventListener('mousedown', e => startDrag(e, piece));
+            piece.addEventListener('touchstart', e => startDrag(e, piece), { passive: false });
+            tray.appendChild(piece);
+        });
+
+        function startDrag(e, piece) {
+            e.preventDefault();
+            dragEl = piece;
+            originParent = piece.parentElement;
+            const rect = piece.getBoundingClientRect();
+            const point = e.touches ? e.touches[0] : e;
+            offsetX = point.clientX - rect.left;
+            offsetY = point.clientY - rect.top;
+
+            piece.style.width = rect.width + 'px';
+            piece.style.height = rect.height + 'px';
+            document.body.appendChild(piece);
+            piece.classList.add('dragging');
+            piece.style.left = rect.left + 'px';
+            piece.style.top = rect.top + 'px';
+
+            document.addEventListener('mousemove', onMove);
+            document.addEventListener('mouseup', onUp);
+            document.addEventListener('touchmove', onMove, { passive: false });
+            document.addEventListener('touchend', onUp);
+        }
+
+        function onMove(e) {
+            if (!dragEl) return;
+            e.preventDefault();
+            const point = e.touches ? e.touches[0] : e;
+            dragEl.style.left = (point.clientX - offsetX) + 'px';
+            dragEl.style.top = (point.clientY - offsetY) + 'px';
+        }
+
+        function getSlotAtPoint(x, y) {
+            const slots = document.querySelectorAll('.slot');
+            let closest = null;
+            let closestDist = Infinity;
+            for (const slot of slots) {
+                const r = slot.getBoundingClientRect();
+                if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) {
+                    return slot;
+                }
+                const cx = r.left + r.width / 2;
+                const cy = r.top + r.height / 2;
+                const dist = Math.hypot(cx - x, cy - y);
+                if (dist < closestDist) {
+                    closestDist = dist;
+                    closest = slot;
+                }
+            }
+            if (closest) {
+                const r = closest.getBoundingClientRect();
+                const tolerance = Math.max(r.width, r.height) * 0.6;
+                if (closestDist <= tolerance) return closest;
+            }
+            return null;
+        }
+
+        function onUp(e) {
+            if (!dragEl) return;
+            const point = e.changedTouches ? e.changedTouches[0] : e;
+
+            dragEl.classList.remove('dragging');
+            dragEl.style.position = '';
+            dragEl.style.left = '';
+            dragEl.style.top = '';
+
+            const slot = getSlotAtPoint(point.clientX, point.clientY);
+            const isCorrectSlot = slot && !slot.classList.contains('filled') &&
+                parseInt(slot.dataset.index, 10) === parseInt(dragEl.dataset.piece, 10);
+
+            if (isCorrectSlot) {
+                dragEl.style.width = '80px';
+                dragEl.style.height = '80px';
+                dragEl.style.cursor = 'default';
+                slot.appendChild(dragEl);
+                slot.classList.add('filled');
+                placedCount++;
+                if (placedCount === total) {
+                    setTimeout(() => document.getElementById('overlay').classList.add('show'), 300);
+                }
+            } else {
+                if (slot) {
+                    slot.classList.add('wrong');
+                    setTimeout(() => slot.classList.remove('wrong'), 300);
+                }
+                dragEl.style.width = '78px';
+                dragEl.style.height = '78px';
+                originParent.appendChild(dragEl);
+            }
+
+            dragEl = null;
+            document.removeEventListener('mousemove', onMove);
+            document.removeEventListener('mouseup', onUp);
+            document.removeEventListener('touchmove', onMove);
+            document.removeEventListener('touchend', onUp);
+        }
+    </script>
+</body>
+
+</html>

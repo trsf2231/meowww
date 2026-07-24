@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <style>
+        body {
+            background: #fc3a84;
+            color: white;
+            text-align: center;
+            font-family: sans-serif;
+            padding-top: 60px;
+            margin: 0;
+        }
+
+        h2 {
+            font-size: 1.8rem;
+            margin-bottom: 10px;
+        }
+
+        p.sub {
+            opacity: 0.9;
+            margin-bottom: 25px;
+        }
+
+        .board {
+            width: 240px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: repeat(4, 60px);
+            grid-template-rows: repeat(4, 60px);
+            background: #8e2140;
+            border: 3px solid #8e2140;
+            gap: 2px;
+        }
+
+        .cell {
+            width: 60px;
+            height: 60px;
+            border: none;
+            text-align: center;
+            font-size: 1.5rem;
+            background: #fff0f3;
+            color: #8e2140;
+            font-weight: bold;
+        }
+
+        .cell.fixed {
+            background: #fdd6df;
+            color: #8e2140;
+        }
+
+        .cell:nth-child(2n) {}
+
+        button.check {
+            margin-top: 25px;
+            padding: 10px 30px;
+            border-radius: 10px;
+            border: none;
+            background: #fb7185;
+            color: white;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 1rem;
+        }
+
+        #msg {
+            margin-top: 15px;
+            font-size: 1.1rem;
+            min-height: 1.5rem;
+        }
+
+        a.back {
+            display: inline-block;
+            margin-top: 20px;
+            color: white;
+            text-decoration: underline;
+            font-size: 1.1rem;
+        }
+
+        .overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(142, 33, 64, 0.95);
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .overlay.show {
+            display: flex;
+        }
+
+        .overlay p {
+            font-size: 1.5rem;
+            max-width: 600px;
+        }
+
+        .overlay h1 {
+            font-size: 3rem;
+        }
+    </style>
+</head>
+
+<body>
+    <h2>Mini Sudoku 🔢</h2>
+    <p class="sub">Fill in 1-4 so each row, column, and 2x2 box has no repeats.</p>
+    <div class="board" id="board"></div>
+    <button class="check" onclick="checkSolution()">Check</button>
+    <div id="msg"></div>
+    <a class="back" href="/">Back Home</a>
+
+    <div class="overlay" id="overlay">
+        <h1>💌</h1>
+        <p>{{ text }}</p>
+        <a class="back" href="/" style="margin-top:10px;">Back Home</a>
+    </div>
+
+    <script>
+        // 0 = empty cell for the player to fill in
+        const puzzle = [
+            [1, 0, 0, 4],
+            [0, 4, 1, 0],
+            [0, 1, 4, 0],
+            [4, 0, 0, 1]
+        ];
+        const board = document.getElementById('board');
+        const inputs = [];
+
+        for (let r = 0; r < 4; r++) {
+            inputs.push([]);
+            for (let c = 0; c < 4; c++) {
+                const input = document.createElement('input');
+                input.className = 'cell';
+                input.maxLength = 1;
+                input.inputMode = 'numeric';
+                if (puzzle[r][c] !== 0) {
+                    input.value = puzzle[r][c];
+                    input.disabled = true;
+                    input.classList.add('fixed');
+                } else {
+                    input.addEventListener('input', () => {
+                        input.value = input.value.replace(/[^1-4]/g, '').slice(-1);
+                    });
+                }
+                board.appendChild(input);
+                inputs[r].push(input);
+            }
+        }
+
+        function isValidSet(values) {
+            const nums = values.filter(v => !isNaN(v));
+            if (nums.length !== 4) return false;
+            return new Set(nums).size === 4;
+        }
+
+        function checkSolution() {
+            const grid = [];
+            for (let r = 0; r < 4; r++) {
+                grid.push(inputs[r].map(inp => parseInt(inp.value, 10)));
+            }
+
+            let valid = true;
+            for (let r = 0; r < 4; r++) {
+                if (!isValidSet(grid[r])) valid = false;
+            }
+            for (let c = 0; c < 4; c++) {
+                if (!isValidSet(grid.map(row => row[c]))) valid = false;
+            }
+            const boxStarts = [[0, 0], [0, 2], [2, 0], [2, 2]];
+            for (const [br, bc] of boxStarts) {
+                const box = [grid[br][bc], grid[br][bc + 1], grid[br + 1][bc], grid[br + 1][bc + 1]];
+                if (!isValidSet(box)) valid = false;
+            }
+
+            const msg = document.getElementById('msg');
+            if (valid) {
+                msg.textContent = '';
+                document.getElementById('overlay').classList.add('show');
+            } else {
+                msg.textContent = 'Not quite — try again!';
+            }
+        }
+    </script>
+</body>
+
+</html>
