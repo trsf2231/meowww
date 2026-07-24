@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html>
+
+<body style="background:#fc3a84; color:white; text-align:center; padding-top:150px; font-family:sans-serif;">
+    <h2 style="font-size: 2rem; color: #fdfdfd;">{{ question }}</h2>
+    <form action="/letter/{{ id }}" method="POST">
+        <input name="answer" style="padding:15px; width:300px; border-radius:10px; border:none; margin-bottom:20px;"
+            required>
+        <br><button type="submit"
+            style="padding:10px 30px; border-radius:10px; border:none; background:#fb7185; color:white; cursor:pointer; font-weight:bold;">Unlock</button>
+    </form>
+    {% if error %}
+    <p style="color:#f7f3f3; margin-top:20px;">{{ error }}</p>
+    {% endif %}
+</body>
+
+</html>

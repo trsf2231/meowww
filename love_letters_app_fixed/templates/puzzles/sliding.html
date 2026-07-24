@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+    body {
+        background: #fc3a84;
+        color: white;
+        text-align: center;
+        font-family: sans-serif;
+        padding-top: 60px;
+        margin: 0;
+    }
+    h2 { font-size: 1.8rem; margin-bottom: 10px; }
+    p.sub { opacity: 0.9; margin-bottom: 25px; }
+    .board {
+        width: 300px;
+        height: 300px;
+        margin: 0 auto;
+        display: grid;
+        grid-template-columns: repeat(3, 100px);
+        grid-template-rows: repeat(3, 100px);
+        gap: 2px;
+        background: #8e2140;
+        border: 3px solid #8e2140;
+        border-radius: 8px;
+        overflow: hidden;
+    }
+    .tile {
+        width: 100px;
+        height: 100px;
+        background-image: url("/static/img/puzzle_sliding.jpg");
+        background-size: 300px 300px;
+        cursor: pointer;
+    }
+    .blank { background: #fb7185; cursor: default; }
+    a.back {
+        display: inline-block;
+        margin-top: 30px;
+        color: white;
+        text-decoration: underline;
+        font-size: 1.1rem;
+    }
+    .overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(142,33,64,0.95);
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        text-align: center;
+        padding: 20px;
+    }
+    .overlay.show { display: flex; }
+    .overlay p { font-size: 1.5rem; max-width: 600px; }
+    .overlay h1 { font-size: 3rem; }
+</style>
+</head>
+<body>
+    <h2>Slide the pieces back into place 🧩</h2>
+    <p class="sub">Click a tile next to the blank space to move it.</p>
+    <div class="board" id="board"></div>
+    <a class="back" href="/">Back Home</a>
+
+    <div class="overlay" id="overlay">
+        <h1>💌</h1>
+        <p>{{ text }}</p>
+        <a class="back" href="/" style="margin-top:10px;">Back Home</a>
+    </div>
+
+<script>
+const SIZE = 3;
+const BLANK = SIZE * SIZE - 1;
+let tiles = [];
+
+function positionStyle(tileValue) {
+    const row = Math.floor(tileValue / SIZE);
+    const col = tileValue % SIZE;
+    return `-${col * 100}px -${row * 100}px`;
+}
+
+function isSolvable(arr) {
+    let inversions = 0;
+    const flat = arr.filter(v => v !== BLANK);
+    for (let i = 0; i < flat.length; i++) {
+        for (let j = i + 1; j < flat.length; j++) {
+            if (flat[i] > flat[j]) inversions++;
+        }
+    }
+    return inversions % 2 === 0;
+}
+
+function shuffle() {
+    do {
+        tiles = [...Array(SIZE * SIZE).keys()];
+        for (let i = tiles.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [tiles[i], tiles[j]] = [tiles[j], tiles[i]];
+        }
+    } while (!isSolvable(tiles) || isSolved());
+}
+
+function isSolved() {
+    return tiles.every((v, i) => v === i);
+}
+
+function render() {
+    const board = document.getElementById('board');
+    board.innerHTML = '';
+    tiles.forEach((tileValue, idx) => {
+        const div = document.createElement('div');
+        if (tileValue === BLANK) {
+            div.className = 'tile blank';
+        } else {
+            div.className = 'tile';
+            div.style.backgroundPosition = positionStyle(tileValue);
+        }
+        div.addEventListener('click', () => move(idx));
+        board.appendChild(div);
+    });
+}
+
+function move(idx) {
+    const blankIdx = tiles.indexOf(BLANK);
+    const row = Math.floor(idx / SIZE), col = idx % SIZE;
+    const brow = Math.floor(blankIdx / SIZE), bcol = blankIdx % SIZE;
+    const adjacent = (Math.abs(row - brow) + Math.abs(col - bcol)) === 1;
+    if (adjacent) {
+        [tiles[idx], tiles[blankIdx]] = [tiles[blankIdx], tiles[idx]];
+        render();
+        if (isSolved()) {
+            setTimeout(() => document.getElementById('overlay').classList.add('show'), 300);
+        }
+    }
+}
+
+shuffle();
+render();
+</script>
+</body>
+</html>
